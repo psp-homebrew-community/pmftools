@@ -1,0 +1,74 @@
+/*
+ * This file is part of AtracDEnc.
+ *
+ * AtracDEnc is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * AtracDEnc is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with AtracDEnc; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+ */
+
+#pragma once
+#include <math.h>
+#include <cstdint>
+#include <iosfwd>
+#include <optional>
+#include <vector>
+
+#include "config.h"
+
+namespace NAtracDEnc {
+
+class TTransientDetector {
+    const uint16_t ShortSz;
+    const uint16_t BlockSz;
+    const uint16_t NShortBlocks;
+    static const uint16_t PrevBufSz = 20;
+    static const uint16_t FIRLen = 21;
+    void HPFilter(const float* in, float* out);
+    std::vector<float> HPFBuffer;
+    float LastEnergy = 0.0;
+    uint16_t LastTransientPos = 0;
+public:
+    TTransientDetector(uint16_t shortSz, uint16_t blockSz)
+        : ShortSz(shortSz)
+        , BlockSz(blockSz)
+        , NShortBlocks(blockSz/shortSz)
+    {
+        HPFBuffer.resize(BlockSz + FIRLen); 
+    }
+    bool Detect(const float* buf);
+    uint32_t GetLastTransientPos() const { return LastTransientPos; }
+};
+
+std::vector<float> AnalyzeGain(const float* in, uint32_t len, uint32_t maxPoints, bool useRms,
+                               std::vector<float>* subframeLow = nullptr,
+                               std::vector<float>* subframeHigh = nullptr);
+
+struct TGainCurvePoint {
+    uint32_t Level;
+    uint32_t Location;
+};
+
+struct TCurveBuilderCtx {
+    float LastLevel = 0.0f;
+    float LastHpfEnergy = 0.0f;  // mean HPF RMS of previous frame's gain[] subframes
+    float LastTarget = 0.0f;     // target amplitude from previous CalcCurve call (HPF domain)
+};
+
+std::vector<TGainCurvePoint> CalcCurve(const std::vector<float>& in, TCurveBuilderCtx& ctx,
+                                       std::optional<float> nextLevel = {},
+                                       float minScore = 2.0f,
+                                       std::ostream* yamlLog = nullptr,
+                                       const std::vector<float>* subframeLow = nullptr,
+                                       const std::vector<float>* subframeHigh = nullptr);
+
+}
