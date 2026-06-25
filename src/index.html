@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>pmftools-plus</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>pmftools-plus</h1>
+  <p>fuck it, we ball</p>
+  <div class="status-row">
+    <span id="wasm-status" class="pill loading">pmftools</span>
+    <span id="ffmpeg-status" class="pill loading">ffmpeg</span>
+    <span id="selfcheck-status" class="pill loading">self-check</span>
+  </div>
+</header>
+
+<nav role="tablist">
+  <label role="tab" aria-selected="true">
+    <input type="radio" name="tool" value="transcode" checked>
+    <span>Video to PMF</span>
+  </label>
+  <label role="tab">
+    <input type="radio" name="tool" value="demux">
+    <span>PMF Demux</span>
+  </label>
+  <label role="tab">
+    <input type="radio" name="tool" value="mps2pmf">
+    <span>MPS to PMF</span>
+  </label>
+  <label role="tab">
+    <input type="radio" name="tool" value="at3">
+    <span>AT3 Tools</span>
+  </label>
+  <label role="tab">
+    <input type="radio" name="tool" value="info">
+    <span>PMF Info</span>
+  </label>
+  <label role="tab">
+    <input type="radio" name="tool" value="h264">
+    <span>H.264 Analyzer</span>
+  </label>
+</nav>
+
+<main>
+
+<section id="tool-transcode" class="tool-panel">
+  <h2>Video to PMF</h2>
+  <p>Convert any video format to a PSP-compatible PMF. Uses ffmpeg.wasm for transcoding, then wraps into PMF container.</p>
+
+  <form id="transcode-form">
+    <div class="drop-zone" data-drop="transcode-video">
+      <input type="file" id="transcode-video" accept="video/*,.avi,.mp4,.mov,.mkv,.webm" hidden>
+      <label for="transcode-video" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Drop video file here or click to browse</span>
+      </label>
+    </div>
+
+    <div class="drop-zone optional" data-drop="transcode-audio">
+      <input type="file" id="transcode-audio" accept="audio/*,.wav,.mp3,.aac,.ogg,.m4a" hidden>
+      <label for="transcode-audio" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Optional: drop audio file</span>
+      </label>
+    </div>
+
+    <details class="options-details" open>
+      <summary>Video encoding</summary>
+      <div class="option-grid">
+        <label>Avg bitrate <input type="number" id="tc-vbitrate" value="1000" min="64" max="4800"> kbps</label>
+        <label>Max bitrate <input type="number" id="tc-maxbitrate" value="2000" min="64" max="4800"> kbps</label>
+        <label>Width <input type="number" id="tc-width" value="480" min="64" max="720"> px</label>
+        <label>Height <input type="number" id="tc-height" value="272" min="64" max="480"> px</label>
+        <label>GOP size <input type="number" id="tc-gop" value="15" min="1" max="60"></label>
+        <label>FPS <input type="number" id="tc-fps" value="30" min="1" max="60"></label>
+        <label>
+          CRF
+          <select id="tc-crf">
+            <option value="18" selected>18 (good)</option>
+            <option value="23">23 (normal)</option>
+            <option value="28">28 (small)</option>
+            <option value="12">12 (best)</option>
+          </select>
+        </label>
+        <label>
+          Preset
+          <select id="tc-preset">
+            <option value="ultrafast" selected>ultrafast</option>
+            <option value="veryfast">veryfast</option>
+            <option value="fast">fast</option>
+            <option value="medium">medium</option>
+          </select>
+        </label>
+        <label>
+          Profile
+          <select id="tc-profile">
+            <option value="baseline" selected>baseline</option>
+            <option value="main">main</option>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <details class="options-details">
+      <summary>PMF options</summary>
+      <div class="option-grid">
+        <label class="cb"><input type="checkbox" id="tc-icon"> Generate icon header</label>
+        <label>Duration min <input type="number" id="tc-mins" value="0" min="0"></label>
+        <label>Duration sec <input type="number" id="tc-secs" value="0" min="0"></label>
+      </div>
+    </details>
+
+    <button type="submit" id="tc-submit">Convert to PMF</button>
+  </form>
+
+  <output id="transcode-output" class="result-area"></output>
+</section>
+
+<section id="tool-demux" class="tool-panel">
+  <h2>PMF Demux</h2>
+  <p>Extract raw H.264 video and ATRAC3 audio streams from a PMF container.</p>
+
+  <form id="demux-form">
+    <div class="drop-zone" data-drop="demux-file">
+      <input type="file" id="demux-file" accept=".pmf" hidden>
+      <label for="demux-file" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Drop PMF file here or click to browse</span>
+      </label>
+    </div>
+
+    <details class="options-details" open>
+      <summary>Extraction options</summary>
+      <div class="option-grid">
+        <label class="cb"><input type="checkbox" checked data-out="video"> Extract video (.264)</label>
+        <label class="cb"><input type="checkbox" checked data-out="audio"> Extract audio (.at3)</label>
+        <label class="cb"><input type="checkbox" id="demux-split"> Split audio streams</label>
+        <label class="cb"><input type="checkbox" id="demux-header"> Add OMA/AA3 header</label>
+      </div>
+    </details>
+
+    <button type="submit">Demux</button>
+  </form>
+
+  <output id="demux-output" class="result-area"></output>
+</section>
+
+<section id="tool-mps2pmf" class="tool-panel">
+  <h2>MPS to PMF</h2>
+  <p>Wrap an MPS (MPEG-2 Program Stream) file in a PMF container with full header configuration.</p>
+
+  <form id="mps2pmf-form">
+    <div class="drop-zone" data-drop="mps2pmf-file">
+      <input type="file" id="mps2pmf-file" accept=".mps" hidden>
+      <label for="mps2pmf-file" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Drop MPS file here or click to browse</span>
+      </label>
+    </div>
+
+    <details class="options-details" open>
+      <summary>PMF header options</summary>
+      <div class="option-grid">
+        <label class="cb"><input type="checkbox" id="mps-icon"> Generate icon header</label>
+        <label class="cb"><input type="checkbox" id="mps-video-only"> Video only (no audio markers)</label>
+        <label>Duration min <input type="number" id="mps-mins" value="0" min="0"></label>
+        <label>Duration sec <input type="number" id="mps-secs" value="0" min="0"></label>
+      </div>
+    </details>
+
+    <details class="options-details">
+      <summary>Audio detect mode</summary>
+      <div class="option-row">
+        <label class="cb"><input type="checkbox" id="mps-audio-probe" checked> Auto-detect audio PES in MPS stream</label>
+      </div>
+    </details>
+
+    <button type="submit">Convert</button>
+  </form>
+
+  <output id="mps2pmf-output" class="result-area"></output>
+</section>
+
+<section id="tool-at3" class="tool-panel">
+  <h2>AT3 Tools</h2>
+  <p>Encode WAV to ATRAC3 or analyze/decode .at3 files.</p>
+
+  <form id="at3-form">
+    <div class="drop-zone" data-drop="at3-file">
+      <input type="file" id="at3-file" accept=".at3,.oma,.aa3,.wav" hidden>
+      <label for="at3-file" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Drop .at3 / .oma file here or click to browse</span>
+      </label>
+    </div>
+
+    <button type="submit">Analyze</button>
+  </form>
+
+  <output id="at3-output" class="result-area"></output>
+
+</section>
+
+<section id="tool-info" class="tool-panel">
+  <h2>PMF Info</h2>
+  <p>Inspect PMF header and stream metadata.</p>
+
+  <form id="info-form">
+    <div class="drop-zone" data-drop="info-file">
+      <input type="file" id="info-file" accept=".pmf" hidden>
+      <label for="info-file" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Drop PMF file here or click to browse</span>
+      </label>
+    </div>
+    <button type="submit">Analyze</button>
+  </form>
+  <output id="info-output" class="result-area"></output>
+</section>
+
+<section id="tool-h264" class="tool-panel">
+  <h2>H.264 Analyzer</h2>
+  <p>Count frames and sync (IDR) frames in a raw H.264 Annex B stream.</p>
+
+  <form id="h264-form">
+    <div class="drop-zone" data-drop="h264-file">
+      <input type="file" id="h264-file" accept=".264,.h264" hidden>
+      <label for="h264-file" class="drop-label">
+        <span class="drop-icon">+</span>
+        <span>Drop .264 file here or click to browse</span>
+      </label>
+    </div>
+    <button type="submit">Analyze</button>
+  </form>
+  <output id="h264-output" class="result-area"></output>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="https://github.com/OAleex/pmftools-plus" target="_blank" rel="noopener">pmftools-plus</a>
+    <a href="https://github.com/dcherednik/atracdenc" target="_blank" rel="noopener">atracdenc</a>
+  </div>
+  <button type="button" id="toggle-log" class="ghost-btn">log</button>
+</footer>
+
+<section id="log-panel" class="log-panel hidden">
+  <div class="log-header">
+    <span>log</span>
+    <button type="button" id="clear-log" class="ghost-btn">clear</button>
+  </div>
+  <div class="log-body" id="log-body"></div>
+</section>
+
+<dialog id="modal-error" closedby="any">
+  <div class="dialog-inner">
+    <div class="dialog-icon err">!</div>
+    <div class="dialog-body">
+      <div class="dialog-title">Error</div>
+      <div class="dialog-msg" id="modal-error-msg"></div>
+    </div>
+    <form method="dialog"><button class="ghost-btn dialog-close">&times;</button></form>
+  </div>
+</dialog>
+
+<dialog id="modal-success" closedby="any">
+  <div class="dialog-inner">
+    <div class="dialog-icon ok">&#10003;</div>
+    <div class="dialog-body">
+      <div class="dialog-title">Done</div>
+      <div class="dialog-msg" id="modal-success-msg"></div>
+    </div>
+    <form method="dialog"><button class="ghost-btn dialog-close">&times;</button></form>
+  </div>
+</dialog>
+
+<dialog id="modal-ffmpeg-load" closedby="any">
+  <div class="dialog-inner">
+    <div class="dialog-icon warn">&darr;</div>
+    <div class="dialog-body">
+      <div class="dialog-title">Loading ffmpeg</div>
+      <div class="dialog-msg" id="ffmpeg-load-msg">Downloading ffmpeg.wasm &hellip;</div>
+      <progress id="ffmpeg-load-bar" max="100" value="0"></progress>
+    </div>
+  </div>
+</dialog>
+
+<script src="./pmftools_wasm.js"></script>
+<script src="./ffmpeg.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
